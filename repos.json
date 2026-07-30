@@ -1,0 +1,44 @@
+{
+  "_comment": "Desired GitHub configuration for joaodinissf's personal repositories. Applied by ./apply.sh, which is idempotent: re-running is a no-op when reality already matches. Run without --apply to see drift.",
+
+  "_scope": "Scope is discovered, not listed. Every public, non-fork, non-archived repo owned by the authenticated user is governed by the defaults below. This file holds the policy and the exceptions to it, never the inventory, so a repo created tomorrow is covered without editing anything. Private repos are out of scope.",
+
+  "defaults": {
+    "settings": {
+      "allow_merge_commit": false,
+      "allow_squash_merge": false,
+      "allow_rebase_merge": true,
+      "allow_auto_merge": true,
+      "allow_update_branch": true,
+      "delete_branch_on_merge": true
+    },
+    "security": {
+      "secret_scanning": "enabled",
+      "secret_scanning_push_protection": "enabled",
+      "secret_scanning_non_provider_patterns": "enabled",
+      "secret_scanning_validity_checks": "enabled"
+    },
+    "branch_ruleset": {
+      "required_approving_review_count": 0,
+      "required_review_thread_resolution": false,
+      "ref_include": ["~DEFAULT_BRANCH"],
+      "_note": "zero approvals, because these are single-author repos: the rule to enforce is that every change arrives as a pull request, not that someone else signs it off. No required_status_checks either -- most of these repos have no CI, and a required check that never reports blocks the branch permanently."
+    },
+    "tag_ruleset": true,
+    "tag_ref_include": ["refs/tags/v*", "refs/tags/*-v*"],
+    "_tag_note": "release tags are immutable; anything else is not. Two patterns because both naming conventions are in use here -- bare (v1.0) and component-prefixed (jdf-tab-huddle-v0.2.2). Names outside them, such as nightly or latest, stay movable, which is what removes any reason to disable the ruleset by hand."
+  },
+
+  "exceptions": [
+  ],
+
+  "_exception_shape": {
+    "name": "required -- the repo this entry applies to",
+    "settings": "optional -- merged over defaults.settings",
+    "description": "optional -- reconciled only where declared",
+    "topics": "optional -- reconciled only where declared, because a default of [] would strip topics off every repo that has any",
+    "branch_ruleset": "optional -- an object overriding ref_include / required_approving_review_count / required_review_thread_resolution / required_status_checks, or null to exempt the repo (an empty repo has no branches, so no ruleset can be created)",
+    "tag_ruleset": "optional -- false to skip tag protection",
+    "tag_ref_include": "optional -- overrides the default tag patterns"
+  }
+}
