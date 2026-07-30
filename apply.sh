@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Reconcile personal repositories against repos.json.
 #
-#   ./apply.sh            report drift, change nothing
-#   ./apply.sh --apply    make reality match the file
+#   ./apply.sh                     report drift, change nothing
+#   ./apply.sh --apply             make reality match the file
+#   ./apply.sh [--apply] <repo>…   restrict to the named repos
 #
 # Idempotent: every operation is a PATCH/PUT of desired state, so re-running
 # when nothing has drifted produces no changes. That makes the no-argument form
@@ -16,7 +17,7 @@ set -euo pipefail
 
 CFG="$(dirname "$0")/repos.json"
 APPLY=false
-[[ "${1:-}" == "--apply" ]] && APPLY=true
+[[ "${1:-}" == "--apply" ]] && { APPLY=true; shift; }
 
 command -v gh >/dev/null || { echo "gh is required" >&2; exit 1; }
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
@@ -142,7 +143,25 @@ d_tag_refs=$(jq -c '.defaults.tag_ref_include' "$CFG")
 # Word-split rather than mapfile: macOS ships bash 3.2, which has neither
 # mapfile nor readarray. Repository names cannot contain whitespace.
 REPOS=$(gh repo list "$ME" --source --no-archived --visibility public \
-  --limit 200 --json name --jq '.[].name' | sort)
+  --limit 200 --json name --jq '.[].name' | sort | tr '\n' ' ')
+governed=$(wc -w <<<"$REPOS" | tr -d ' ')
+
+# A positional filter narrows the run to the named repos. Names are intersected
+# with the discovered set rather than trusted: an unknown name is refused, so a
+# typo cannot quietly reconcile nothing while reporting success, and the filter
+# can never reach a repo the policy does not govern.
+if [[ $# -gt 0 ]]; then
+  selected=
+  for want in "$@"; do
+    case " $REPOS " in
+      *" $want "*) selected="$selected $want" ;;
+      *) echo "not a governed repo: $want" >&2; exit 1 ;;
+    esac
+  done
+  REPOS=$selected
+  echo "restricted to:$REPOS"
+  echo
+fi
 
 for repo in $REPOS; do
   ex=$(jq -c --arg n "$repo" '[.exceptions[]? | select(.name==$n)][0] // {}' "$CFG")
@@ -180,8 +199,8 @@ for repo in $REPOS; do
 done
 
 echo
-printf 'governed %s public repo(s); private, forked and archived repos are out of scope\n' \
-  "$(wc -w <<<"$REPOS" | tr -d ' ')"
+printf 'governed %s public repo(s); private, forked and archived repos are out of scope\n' "$governed"
+[[ $# -gt 0 ]] && printf 'this run covered %s of them\n' "$(wc -w <<<"$REPOS" | tr -d ' ')"
 
 if [[ $drift -eq 0 ]]; then
   echo "in sync — no drift"

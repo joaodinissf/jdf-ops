@@ -4,12 +4,17 @@ Declarative GitHub configuration for my personal repositories — merge settings
 branch and tag rulesets, secret scanning.
 
 ```sh
-./apply.sh            # report drift, change nothing
-./apply.sh --apply    # make reality match repos.json
+./apply.sh                     # report drift, change nothing
+./apply.sh --apply             # make reality match repos.json
+./apply.sh [--apply] <repo>…   # restrict to the named repos
 ```
 
 Every operation is a PATCH or PUT of desired state, so the no-argument form is a
 drift check: it exits 0 when everything matches and 1 when something has moved.
+
+A name that is not in the governed set is refused rather than skipped, so the
+filter can neither reach a repository the policy does not cover nor silently
+reconcile nothing because of a typo.
 
 ## Scope is discovered, not listed
 
