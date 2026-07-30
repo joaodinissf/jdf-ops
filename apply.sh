@@ -153,10 +153,13 @@ d_refs=$(jq -c '.defaults.branch_ruleset.ref_include' "$CFG")
 d_tag=$(jq '.defaults.tag_ruleset' "$CFG")
 d_tag_refs=$(jq -c '.defaults.tag_ref_include' "$CFG")
 
-# Word-split rather than mapfile: macOS ships bash 3.2, which has neither
-# mapfile nor readarray. Repository names cannot contain whitespace.
-REPOS=$(gh repo list "$ME" --source --no-archived --visibility public \
-  --limit 200 --json name --jq '.[].name' | sort | tr '\n' ' ')
+d_private=$(jq -c '.defaults.private_overrides' "$CFG")
+
+# Each entry is name:visibility. Word-split rather than mapfile: macOS ships
+# bash 3.2, which has neither mapfile nor readarray. Repository names cannot
+# contain whitespace.
+REPOS=$(gh repo list "$ME" --source --no-archived --limit 300 --json name,visibility \
+  --jq '.[] | "\(.name):\(.visibility | ascii_downcase)"' | sort | tr '\n' ' ')
 governed=$(wc -w <<<"$REPOS" | tr -d ' ')
 
 # A positional filter narrows the run to the named repos. Names are intersected
@@ -166,18 +169,35 @@ governed=$(wc -w <<<"$REPOS" | tr -d ' ')
 if [[ $# -gt 0 ]]; then
   selected=
   for want in "$@"; do
-    case " $REPOS " in
-      *" $want "*) selected="$selected $want" ;;
-      *) echo "not a governed repo: $want" >&2; exit 1 ;;
-    esac
+    hit=
+    for entry in $REPOS; do
+      [[ "${entry%:*}" == "$want" ]] && hit=$entry
+    done
+    [[ -z "$hit" ]] && { echo "not a governed repo: $want" >&2; exit 1; }
+    selected="$selected $hit"
   done
   REPOS=$selected
-  echo "restricted to:$REPOS"
+  echo "restricted to:$(tr ' ' '\n' <<<"$selected" | sed 's/:.*//' | tr '\n' ' ')"
   echo
 fi
 
-for repo in $REPOS; do
+for entry in $REPOS; do
+  repo=${entry%:*}
+  vis=${entry##*:}
   ex=$(jq -c --arg n "$repo" '[.exceptions[]? | select(.name==$n)][0] // {}' "$CFG")
+
+  # Private repos get merge settings and nothing else. Rulesets and secret
+  # scanning both need paid features there, and GitHub answers with a 200 that
+  # changes nothing rather than an error -- so attempting them would report
+  # drift forever.
+  if [[ "$vis" == "private" ]]; then
+    echo "$repo (private)"
+    want=$(jq -cn --argjson d "$d_settings" --argjson p "$d_private" --argjson e "$ex" \
+      '$d + $p + ($e.settings // {})')
+    patch_repo "$repo" "$want"
+    continue
+  fi
+
   echo "$repo"
 
   want=$(jq -cn --argjson d "$d_settings" --argjson e "$ex" '$d + ($e.settings // {})')
@@ -214,7 +234,8 @@ for repo in $REPOS; do
 done
 
 echo
-printf 'governed %s public repo(s); private, forked and archived repos are out of scope\n' "$governed"
+printf 'governed %s repo(s): public in full, private for merge settings only\n' "$governed"
+printf 'forks and archived repos are out of scope\n'
 [[ $# -gt 0 ]] && printf 'this run covered %s of them\n' "$(wc -w <<<"$REPOS" | tr -d ' ')"
 
 if [[ $drift -eq 0 ]]; then
