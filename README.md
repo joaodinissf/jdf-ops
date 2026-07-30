@@ -19,11 +19,14 @@ reconcile nothing because of a typo.
 ## Scope is discovered, not listed
 
 `repos.json` holds the policy and the exceptions to it, never the inventory.
-Every **public, non-fork, non-archived** repository owned by the authenticated
-user is governed by `defaults`, so a repository created tomorrow is covered
-without editing anything.
+Every **non-fork, non-archived** repository owned by the authenticated user is
+governed by `defaults`, so a repository created tomorrow is covered without
+editing anything.
 
-Private repositories are out of scope.
+Public repositories get the whole policy. Private ones get **merge settings
+only**, with auto-merge off: rulesets and secret scanning need paid features
+there, and GitHub answers those requests with a 200 that changes nothing rather
+than an error — so attempting them would report drift forever.
 
 ## The policy
 

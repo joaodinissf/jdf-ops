@@ -16,6 +16,10 @@
       "secret_scanning": "enabled",
       "secret_scanning_push_protection": "enabled"
     },
+    "private_overrides": {
+      "allow_auto_merge": false
+    },
+    "_private_note": "Private repos get merge settings and nothing else -- no rulesets, no secret scanning, both of which need paid features there. Auto-merge is off because it requires branch protection, which is exactly what cannot be created. Their coverage exists so that nothing is lost from the standardize-repo-settings gist this repo replaces.",
     "_security_note": "Every key under security is sent verbatim as a flag, so no annotation can live inside it. secret_scanning_non_provider_patterns and secret_scanning_validity_checks are deliberately absent: they require Advanced Security, and without it GitHub accepts the PATCH with 200 and silently ignores it. Declaring them would report drift on every repo forever, costing this file its exit-0 drift check. Add them if the account ever gains Secret Protection.",
     "branch_ruleset": {
       "required_approving_review_count": 0,
