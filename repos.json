@@ -24,8 +24,8 @@
       "_note": "zero approvals, because these are single-author repos: the rule to enforce is that every change arrives as a pull request, not that someone else signs it off. No required_status_checks either -- most of these repos have no CI, and a required check that never reports blocks the branch permanently."
     },
     "tag_ruleset": true,
-    "tag_ref_include": ["refs/tags/v*", "refs/tags/*-v*"],
-    "_tag_note": "release tags are immutable; anything else is not. Two patterns because both naming conventions are in use here -- bare (v1.0) and component-prefixed (jdf-tab-huddle-v0.2.2). Names outside them, such as nightly or latest, stay movable, which is what removes any reason to disable the ruleset by hand."
+    "tag_ref_include": ["refs/tags/v*", "refs/tags/*-v*", "refs/tags/release/*"],
+    "_tag_note": "release tags are immutable; anything else is not. Three patterns because three naming conventions are in use -- bare (v1.0), component-prefixed (jdf-tab-huddle-v0.2.2) and namespaced (release/1.0). Names outside them, such as nightly or latest, stay movable, which is what removes any reason to disable the ruleset by hand. Creation is deliberately not blocked: the property worth having is that a published tag never moves, and blocking creation would mean no release could be tagged without a bypass actor -- and a bypass actor makes the whole ruleset advisory for whoever holds it."
   },
 
   "exceptions": [

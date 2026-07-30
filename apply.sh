@@ -106,6 +106,19 @@ ensure_ruleset() {
   return 0
 }
 
+# Rulesets this file does not define still govern the repo, and they stack:
+# GitHub enforces the union. Reported rather than counted as drift, because an
+# unmanaged ruleset is information, not a policy violation -- but silence here
+# would let "in sync" mean far less than it sounds.
+report_unmanaged() {
+  local repo=$1 extra
+  extra=$(gh api "repos/$ME/$repo/rulesets" \
+    --jq '[.[] | select(.name != "default" and .name != "tags") | "\(.name) [\(.target)]"] | join(", ")' \
+    2>/dev/null || true)
+  [[ -n "$extra" ]] && note "$repo" "unmanaged: $extra"
+  return 0
+}
+
 branch_ruleset_body() {
   jq -n --argjson reviews "$1" --argjson threads "$2" --argjson checks "$3" --argjson refs "$4" '
     {name: "default", target: "branch", enforcement: "active", bypass_actors: [],
@@ -196,6 +209,8 @@ for repo in $REPOS; do
     trefs=$(jq -c --argjson d "$d_tag_refs" 'if has("tag_ref_include") then .tag_ref_include else $d end' <<<"$ex")
     ensure_ruleset "$repo" "tags" "$(tag_ruleset_body "$trefs")"
   fi
+
+  report_unmanaged "$repo"
 done
 
 echo
